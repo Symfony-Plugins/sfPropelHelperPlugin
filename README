@@ -1,0 +1,67 @@
+INTRODUCTION
+------------
+
+This plugin makes it easier to do (non-default-)joins.
+Instead of the limited doSelectJoin(xxx) Peer-Methods you are now free to do any join (between any related tables and with any depth)
+and let the result get hydrated automatically.
+
+This helper extends the functionality of Propel, while keeping it completely backwards compatible.
+
+
+INSTALLATION
+------------
+
+NOTE: be sure to have connection pooling enabled for your propel database (in your database.yml)
+or else you will get more results than desired with right-joins (one-to-many relations)
+
+In order to make use of this helper you should enable the peer and object builders provided by this plugin in the builder map.
+you should change your config/propel.ini and set
+
+propel.builder.peer.class              = plugins.sfPropelHelperPlugin.lib.builder.SfPeerBuilderDS
+propel.builder.object.class            = plugins.sfPropelHelperPlugin.lib.builder.SfObjectBuilderDS
+
+run
+symfony propel:build-model and you have extended base peer and object classes.
+
+There also is an important bug fix for Propel provided with this plugin, that
+makes it possible to define select columns before you have provide table-aliasses.
+
+To enable this patch copy two files to your propel folder:
+  cp plugins/sfPropelHelperPlugin/patch/result\ after\ patch/* lib/vendor/symfony/lib/plugins/sfPropelPlugin/lib/vendor/propel/util/
+
+(this was created at the time of Symfony 1.2.4)
+
+I would like to get these improvements included into Propel, but it is somewhat hard to get into contact with the Propel community,
+since everything you send gets marked as spam...
+
+
+So far the difficult part.
+
+
+EXAMPLE
+-------
+
+schema.yml:
+
+propel:
+  album:
+    id:
+    album_id:
+    map:          varchar(255)
+    title:        varchar(255)
+    description:  LONGVARCHAR
+  foto:
+    id:
+    album_id:
+    filename:     varchar(255)
+    title:        varchar(255)
+    description:  LONGVARCHAR
+
+
+Lets see that in action.class.php:
+
+
+LICENSE
+-------
+
+see LICENSE file
