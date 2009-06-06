@@ -5,6 +5,9 @@ This plugin makes it easier to do (non-default-)joins.
 Instead of the limited doSelectJoin(xxx) Peer-Methods you are now free to do any join (between any related tables and with any depth)
 and let the result get hydrated automatically.
 
+So called ObjectPaths have been introduced to define objects, with their relations. (
+Similar PropertyPaths have been introduced to define properties of (related)objects)
+
 This helper extends the functionality of Propel, while keeping it completely backwards compatible.
 
 
@@ -43,22 +46,58 @@ EXAMPLE
 
 schema.yml:
 
-propel:
-  album:
-    id:
-    album_id:
-    map:          varchar(255)
-    title:        varchar(255)
-    description:  LONGVARCHAR
-  foto:
-    id:
-    album_id:
-    filename:     varchar(255)
-    title:        varchar(255)
-    description:  LONGVARCHAR
+    propel:
+      photo:
+        id:
+        album_id:
+        name:     varchar(50)
+
+      album:
+        id:
+        album_id:
+        name:     varchar(50)
 
 
 Lets see that in action.class.php:
+
+    $this->getContext()->getConfiguration()->loadHelpers('sfPropelPropertyPath');
+
+    $criteria = new Criteria();
+    $objectPaths = array('Photo', 'Photo.Album'); // this can be reduced to array('Photo.Album');
+
+    $criteria = addJoinsAndSelectColumns($criteria, $objectPaths);
+    $photos = hydrate($criteria, $objectPaths, $connection = null);
+
+    foreach ($photos as $photo)
+    {
+      echo $photo->getAlbum()->getName()." -> ".$photo->getName()."<br>\n";
+    }
+
+
+
+Obviously the big advantage of this plugin shows when you have complex joins to be performed!
+The propel-model builder is extended to provide you with all the default joins.
+These get defined in the basePeer-classes like this  (from the BasePhotoPeer):
+
+    static public function getRelations()
+    {
+      return array (
+        'Album' => array (
+          'relatedClass' => 'Album',
+          'oneToMany' => false,
+          'associateMethod' => 'addPhoto',
+          'leftKeys' => array (
+            0 => PhotoPeer::ALBUM_ID,
+          ),
+          'rightKeys' => array (
+            0 => AlbumPeer::ID,
+          ),
+          'joinType' => 'LEFT JOIN',
+        ),
+      );
+    }
+
+You can extend this method in the Peer class and define custom relations from one class to the other.
 
 
 LICENSE

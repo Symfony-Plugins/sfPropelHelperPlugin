@@ -3,7 +3,7 @@
 class MockPropelParentPeer
 {
   /** the default database name for this class */
-  const DATABASE_NAME = 'propel';
+  const DATABASE_NAME = 'propel_mock';
 
   /** the table name for this class */
   const TABLE_NAME = 'mock_propel_parent';
@@ -76,5 +76,39 @@ class MockPropelParentPeer
           'joinType' => 'LEFT JOIN',
         ),
     );
+  }
+
+  public static function getCustomColumns()
+  {
+    return array();
+  }
+
+  public static function addCustomSelectColumns(Criteria $criteria)
+  {
+    foreach (MockPropelParentPeer::getCustomColumns() as $name => $clause )
+    {
+      $criteria->addAsColumn($name, $clause);
+    }
+  }
+
+  public static function addSelectColumnsAliased(Criteria $criteria, $alias)
+  {
+
+    $criteria->addSelectColumn(MockPropelParentPeer::alias($alias, MockPropelParentPeer::ID));
+
+    $criteria->addSelectColumn(MockPropelParentPeer::alias($alias, MockPropelParentPeer::MOCK_PROPEL_PARENT_ID));
+
+    $criteria->addSelectColumn(MockPropelParentPeer::alias($alias, MockPropelParentPeer::NAME));
+
+  }
+
+  public static function alias($alias, $column)
+  {
+    return str_replace(MockPropelParentPeer::TABLE_NAME.'.', $alias.'.', $column);
+  }
+
+  static public function translateFieldName($name, $fromType, $toType)
+  {
+    return $name;
   }
 }

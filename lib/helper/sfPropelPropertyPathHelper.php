@@ -25,16 +25,16 @@
 
 Example 1:
 
-$criteria = new Criteria();
-$objectPaths = array('Foto', 'Foto.Album');
+    $criteria = new Criteria();
+    $objectPaths = array('Photo', 'Photo.Album');
 
-$criteria = addJoinsAndSelectColumns($criteria, $objectPaths);
-$fotos = hydrate($criteria, $objectPaths, $connection = null);
+    $criteria = addJoinsAndSelectColumns($criteria, $objectPaths);
+    $photos = hydrate($criteria, $objectPaths, $connection = null);
 
-foreach ($fotos as $foto)
-{
-  echo $foto->getAlbum()->getTitle();
-}
+    foreach ($photos as $photo)
+    {
+      echo $photo->getAlbum()->getName();
+    }
 
 
 
@@ -42,16 +42,16 @@ foreach ($fotos as $foto)
 Example 2:
 
 $criteria = new Criteria();
-$objectPaths = array('Album.Foto'); // no need to provide Album first, this can be deducted (similar in the first example)
+$objectPaths = array('Album.Photo'); // no need to provide Album first, this can be deducted (similar in the first example)
 
 $criteria = addJoinsAndSelectColumns($criteria, $objectPaths);
 $albums = hydrate($criteria, $objectPaths, $connection = null);
 
 foreach ($albums as $album)
 {
-  foreach ($album->getFotos() as $foto)
+  foreach ($album->getPhotos() as $photo)
   {
-    echo $foto->getTitle();
+    echo $photo->getName();
   }
 }
 
@@ -159,7 +159,7 @@ function checkPropertyPath($baseClass, $propertyPath)
 
 
 /**
- * retreives the relation information to a table
+ * retreives the relation-information of a join
  *
  * @param string $relationPath  partial objectPath consisting of two objects
  *
@@ -204,7 +204,7 @@ function getPeerNameForClass($class)
 {
   if (!class_exists($class))
   {
-    throw new Exception('Unable to retreive Peer! Baseclass "'.$class.'" does not exist!');
+    throw new InvalidArgumentException('Unable to retreive Peer! Baseclass "'.$class.'" does not exist!');
   }
 
   $peerName = constant($class.'::PEER');
@@ -227,7 +227,7 @@ function resolveClassNameFromObjectPath($objectPath)
   $parts = explode('.', $objectPath, 2);
 
   // if no parts, we have an error
-  if (count($parts) == 0)
+  if (count($parts) == 0 || !$parts[0])
   {
     throw new InvalidArgumentException('empty objectPath provided');
   }
@@ -252,7 +252,7 @@ function resolveClassNameFromObjectPath($objectPath)
   }
   else
   {
-    throw new Exception('No relation "'.$relationName.'" has been defined in the (base)"'.$basePeer.'"-method "getRelations".');
+    throw new UnexpectedValueException('No relation "'.$relationName.'" has been defined in the (base)"'.$basePeer.'"-method "getRelations".');
   }
 
   array_unshift($relationNames, $relation['relatedClass']);
@@ -378,7 +378,7 @@ function flattenAllClasses($objectPath, $classes = array(), $parent = '')
  * @param array[string] $objectPaths    an array of objectPaths
  * @return array                        an array of Classes derived from the objectPaths
  */
-function flattenAllClassesArray($objectPaths)
+function flattenAllClassesArray(array $objectPaths)
 {
   $classes = array();
   $baseClass = resolveBaseClass($objectPaths[0]);
@@ -419,7 +419,7 @@ function resolveBaseClass($objectPath)
  * @see addJoins()
  *
  */
-function addJoinsAndSelectColumns(Criteria $criteria = null, $objectPaths)
+function addJoinsAndSelectColumns(Criteria $criteria, array $objectPaths)
 {
   return addJoins($criteria, $objectPaths, true);
 }
@@ -427,34 +427,7 @@ function addJoinsAndSelectColumns(Criteria $criteria = null, $objectPaths)
 /**
  * addJoins.
  *
- * The data source can be given as an (array of) objectPaths, or a custom
- * Criteria object. Custom criteria objects will not get hydrated, objects
- * names are!
  * the Criteria object will be cloned, since it will be modified internally.
- *
- * In the future the objectPaths can become optional, since these can be resolved
- * lazy from the property paths of a grid->setColumns(...)
- *
- * <code>
- * // fetches all user objects, and their related userProfiles from objectPath
- * $source = new sfDataSourcePropel('User', 'User.UserProfile');
- * // exactly the same:
- * $source = new sfDataSourcePropel(array('User.UserProfile'));
- * // since array is optional, and 'User' is resolved from 'User.UserProfile'
- * // this source->current() will return a hydrated object of the base object (User)
- *
- * // fetches user objects from Criteria
- * $criteria = new Criteria();
- * UserPeer::addSelectColumns($criteria);
- * // you can add more related / custom columns here
- *
- * $countCriteria = new Criteria();
- * $countCriteria->setPrimaryTableName(UserPeer::TABLE_NAME);
- *
- * $source = new sfDataSourcePropel($criteria, $countCriteria);
- * // this source will contain non-hydrated resultsets,
- * // hasColumn will only accept the tablename.COLUMNNAME syntax (from propel)
- * </code>
  *
  * @param Criteria $criteria         The Criteria Object to add the selected-columns and joins to
  * @param array $objectPaths         an array of object Paths
@@ -471,16 +444,10 @@ function addJoinsAndSelectColumns(Criteria $criteria = null, $objectPaths)
  *                                   neither a valid propel model class name
  *                                   nor a Criteria.
  */
-function addJoins(Criteria $criteria = null, $objectPaths, $withColumns = false)
+function addJoins(Criteria $criteria, array $objectPaths, $withColumns = false)
 {
   // clone criteria, since we are going to modify it
   $criteria = clone $criteria;
-
-  // if the source is provided as object paths, create hydratable criteria
-  if (!is_array($objectPaths))
-  {
-    throw new InvalidArgumentException('No ObjectPaths provided (this should be an array)');
-  }
 
   // generate an array of classes to be retrieved from DB
   $baseClass = resolveBaseClass($objectPaths[0]);
@@ -557,23 +524,17 @@ function addJoins(Criteria $criteria = null, $objectPaths, $withColumns = false)
  *
  * @return array        the array of hydrated (base)objects, with there relation (from the objectPaths)
  */
-function hydrate(Criteria $criteria, $objectPaths, $connection = null)
+function hydrate(Criteria $criteria, array $objectPaths, $connection = null)
 {
   // data holds all main results
   $data = array();
-  
+
   $processedResults = array();
 
   if (!Propel::isInstancePoolingEnabled())
   {
     throw new Exception('You need to enable instance pooling to make hydration work correctly');
     // this can also be solved by implementing a local instance pooling array in this method...
-  }
-
-  // if the source is provided as object paths, create hydratable criteria
-  if (!is_array($objectPaths))
-  {
-    throw new InvalidArgumentException('No ObjectPaths provided (this should be an array)');
   }
 
   // execute query
@@ -616,7 +577,7 @@ function hydrate(Criteria $criteria, $objectPaths, $connection = null)
       $cls = substr('.'.$omClass, strrpos('.'.$omClass, '.') + 1);
       $instance = new $cls();
       $instance->hydrate($row);
-      
+
 // TODO: add instance pooling as well
 //      call_user_func_array(array($basePeer, 'addInstanceToPool'), array($instance, $key));
       $processedResults[$baseClass][$key] = $instance;
@@ -666,7 +627,7 @@ function hydrate(Criteria $criteria, $objectPaths, $connection = null)
           $cls = substr('.'.$omClass, strrpos('.'.$omClass, '.') + 1);
           $relatedObj = new $cls();
           $relatedObj->hydrate($row, $startcol);
-          
+
 //          call_user_func_array(array($relatedPeer, 'addInstanceToPool'), array($relatedObj, $key));
           $processedResults[$objectPath][$key] = $relatedObj;
         }
@@ -716,7 +677,7 @@ function hydrate(Criteria $criteria, $objectPaths, $connection = null)
  *
  * @return int    the number of results for the generated query
  */
-function countAll($criteria, $objectPaths, $connection = null)
+function countAll(Criteria $criteria, array $objectPaths, $connection = null)
 {
   $baseClass = resolveBaseClass($objectPaths[0]);
   $basePeer = getPeerNameForClass($baseClass);
